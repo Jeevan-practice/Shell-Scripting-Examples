@@ -1,0 +1,10 @@
+2026-06-23 10:01:12 INFO 192.168.1.1 User logged in
+2026-06-23 10:02:15 ERROR 192.168.1.2 Disk space critical
+2026-06-23 10:03:22 WARN 192.168.1.1 High memory usage
+2026-06-23 10:04:10 ERROR 192.168.1.3 Service crashed
+2026-06-23 10:05:33 INFO 192.168.1.1 Backup started
+2026-06-23 10:06:44 ERROR 192.168.1.2 Connection timeout
+2026-06-23 10:07:55 WARN 192.168.1.4 CPU usage high
+2026-06-23 10:08:12 INFO 192.168.1.1 User logged out
+2026-06-23 10:09:01 ERROR 192.168.1.2 Database error
+2026-06-23 10:10:45 INFO 192.168.1.3 Service restarted
