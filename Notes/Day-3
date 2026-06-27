@@ -1,0 +1,348 @@
+# Shell Scripting — Day 3 Notes
+
+---
+
+## 1. String Manipulation
+
+String manipulation in bash uses `${ }` syntax — similar to Python but different style!
+
+### 1.1 Extract After Dot (file extension)
+
+```bash
+file="file1.txt"
+extension="${file##*.}"
+echo $extension    # → txt
+```
+
+`##*.` means — remove everything from left up to the last dot.
+
+---
+
+### 1.2 Extract Before Dot (filename without extension)
+
+```bash
+file="file1.txt"
+filename="${file%.*}"
+echo $filename    # → file1
+```
+
+`%.*` means — remove everything from right after the last dot.
+
+---
+
+### 1.3 String Length
+
+```bash
+name="Hello World"
+echo ${#name}    # → 11
+```
+
+`#` before variable name = count total characters including spaces.
+
+---
+
+### 1.4 Slice a String
+
+```bash
+name="Hello World"
+echo ${name:0:5}    # → Hello
+echo ${name:6:5}    # → World
+echo ${name:6}      # → World (no length = till end)
+```
+
+Syntax:
+```bash
+${variable:start:length}
+#           ^     ^
+#           |     how many characters
+#           start position (0 based)
+```
+
+Character positions:
+```
+H  e  l  l  o     W  o  r  l  d
+0  1  2  3  4  5  6  7  8  9  10
+```
+
+Comparison with Python:
+| | Python | Bash |
+|---|---|---|
+| Slice | `name[0:5]` | `${name:0:5}` |
+| Till end | `name[6:]` | `${name:6}` |
+| Length | `len(name)` | `${#name}` |
+
+---
+
+### 1.5 Find and Replace
+
+```bash
+name="one two one three one"
+
+# Replace FIRST occurrence only
+echo ${name/one/ONE}     # → ONE two one three one
+
+# Replace ALL occurrences
+echo ${name//one/ONE}    # → ONE two ONE three ONE
+```
+
+| Syntax | Meaning |
+|---|---|
+| `${var/find/replace}` | replace first match only |
+| `${var//find/replace}` | replace all matches |
+
+Think of it like Word's:
+- `/` = "Find Next and Replace"
+- `//` = "Replace All"
+
+---
+
+### 1.6 Uppercase and Lowercase
+
+```bash
+name="hello world"
+echo ${name^^}    # → HELLO WORLD (all uppercase)
+echo ${name,,}    # → hello world (all lowercase)
+echo ${name^}     # → Hello world (first letter only)
+```
+
+| Syntax | Meaning |
+|---|---|
+| `${name^^}` | ALL uppercase |
+| `${name,,}` | ALL lowercase |
+| `${name^}` | First letter uppercase only |
+
+---
+
+### Complete String Manipulation Cheat Sheet
+
+| Syntax | Meaning | Example | Output |
+|---|---|---|---|
+| `${file##*.}` | extract after dot | `file1.txt` | `txt` |
+| `${file%.*}` | extract before dot | `file1.txt` | `file1` |
+| `${#name}` | length of string | `Hello World` | `11` |
+| `${name:0:5}` | slice string | `Hello World` | `Hello` |
+| `${name:6}` | slice till end | `Hello World` | `World` |
+| `${name/old/new}` | replace first | `one two one` | `ONE two one` |
+| `${name//old/new}` | replace all | `one two one` | `ONE two ONE` |
+| `${name^^}` | all uppercase | `hello` | `HELLO` |
+| `${name,,}` | all lowercase | `HELLO` | `hello` |
+| `${name^}` | first letter upper | `hello world` | `Hello world` |
+
+---
+
+## 2. For Loops
+
+### 2.1 Loop Through Files — Wildcard `*`
+
+`*` is a **wildcard** — shell automatically expands it to all matching files!
+
+```bash
+# All files in current directory
+for file in *; do
+    echo $file
+done
+
+# Only txt files
+for file in *.txt; do
+    echo $file
+done
+
+# Only log files
+for file in *.log; do
+    echo $file
+done
+
+# Files starting with "file"
+for file in file*; do
+    echo $file
+done
+```
+
+---
+
+### 2.2 Loop Through Numbers
+
+```bash
+# Way 1 — list numbers manually
+for i in 1 2 3 4 5; do
+    echo $i
+done
+
+# Way 2 — range (clean and simple!)
+for i in {1..10}; do
+    echo $i
+done
+
+# Way 3 — like C language (more control)
+for ((i=1; i<=10; i++)); do
+    echo $i
+done
+
+# Step by 2
+for i in {1..10..2}; do    # 1 3 5 7 9
+    echo $i
+done
+
+# Count down
+for i in {10..1}; do
+    echo $i
+done
+```
+
+---
+
+### 2.3 Loop Through Custom List
+
+```bash
+# Inline list
+for color in red green blue yellow; do
+    echo $color
+done
+
+# List stored in variable
+fruits="apple banana mango"
+for fruit in $fruits; do
+    echo $fruit
+done
+
+# List of servers
+servers="server1 server2 server3"
+for server in $servers; do
+    echo "Connecting to $server"
+done
+```
+
+---
+
+### 2.4 Loop Through Command Output
+
+Any command that returns multiple lines can be used with `$()` !
+
+```bash
+# find command — loop through all txt files
+for file in $(find . -name "*.txt"); do
+    echo $file
+done
+
+# ls command
+for file in $(ls *.log); do
+    echo $file
+done
+
+# Read from a file
+for line in $(cat filelist.txt); do
+    echo $line
+done
+
+# Loop through all running processes
+for pid in $(pgrep bash); do
+    echo "Bash process: $pid"
+done
+```
+
+Simple rule:
+> **Anything that returns multiple lines can go inside `$()` and for loop will traverse each item!**
+
+---
+
+### 2.5 Loop Control — break and continue
+
+```bash
+# continue — skip current iteration
+for file in *; do
+    if [ -d "$file" ]; then
+        continue    # skip directories, go to next file
+    fi
+    echo $file
+done
+
+# break — stop the loop entirely
+for i in {1..10}; do
+    if [ $i -eq 5 ]; then
+        break      # stop at 5
+    fi
+    echo $i
+done
+```
+
+| Command | Meaning |
+|---|---|
+| `continue` | skip this iteration, go to next |
+| `break` | stop the loop entirely |
+
+---
+
+## 3. Bulk File Organizer — Key Concepts
+
+```bash
+#!/bin/bash
+cd ./testfiles
+
+mkdir -p /workspaces/logs    # create log dir if not exists
+
+for file in *; do
+    # skip directories and script itself
+    if [ -d "$file" ] || [ "$file" == "$0" ]; then
+        continue
+    fi
+
+    extension="${file##*.}"    # extract extension
+
+    if [ $extension == "txt" ]; then
+        mkdir -p text
+        mv $file text
+        echo "$(date) - Moved $file to /text" >> /workspaces/logs/challenge3log
+
+    elif [ $extension == "jpg" ] || [ $extension == "png" ]; then
+        mkdir -p images
+        mv $file images
+        echo "$(date) - Moved $file to /images" >> /workspaces/logs/challenge3log
+
+    elif [ $extension == "sh" ]; then
+        mkdir -p scripts
+        mv $file scripts
+        echo "$(date) - Moved $file to /scripts" >> /workspaces/logs/challenge3log
+
+    else
+        echo "$(date) - Skipped $file (unknown extension)" >> /workspaces/logs/challenge3log
+    fi
+done
+```
+
+Key concepts used:
+- `${file##*.}` — extract file extension
+- `mkdir -p` — create folder only if not exists
+- `mv` — move file to folder
+- `-d "$file"` — check if item is a directory
+- `$0` — script's own name
+- `continue` — skip current iteration
+- `||` — OR condition
+- `>>` — append to log file
+- `$(date)` — current timestamp
+
+---
+
+## Quick Reference
+
+```bash
+# String manipulation
+${file##*.}          # extract extension
+${file%.*}           # extract filename
+${#name}             # string length
+${name:0:5}          # slice
+${name/old/new}      # replace first
+${name//old/new}     # replace all
+${name^^}            # uppercase
+${name,,}            # lowercase
+
+# For loop types
+for file in *          # all files
+for file in *.txt      # specific extension
+for i in {1..10}       # number range
+for i in a b c         # custom list
+for file in $(cmd)     # command output
+
+# Loop control
+continue    # skip to next iteration
+break       # stop loop entirely
+```

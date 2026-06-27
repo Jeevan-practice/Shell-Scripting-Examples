@@ -1,0 +1,301 @@
+# Shell Scripting — Day 2 Notes
+
+---
+
+## 1. `grep` — Search for Patterns
+
+`grep` stands for **Global Regular Expression Print**
+
+It searches for a pattern in a file or input and prints matching lines.
+
+### Syntax
+```bash
+grep [options] "pattern" filename
+```
+
+### Common Options
+
+| Option | Meaning | Example |
+|---|---|---|
+| `-c` | count matching lines | `grep -c "ERROR" file.log` |
+| `-i` | case insensitive | `grep -i "error" file.log` |
+| `-v` | invert — show non-matching lines | `grep -v "INFO" file.log` |
+| `-n` | show line numbers | `grep -n "ERROR" file.log` |
+| `-r` | search recursively in directories | `grep -r "ERROR" /var/logs/` |
+| `-l` | show only filenames that match | `grep -l "ERROR" *.log` |
+| `-w` | match whole word only | `grep -w "ERR" file.log` |
+| `-A 2` | show 2 lines after match | `grep -A 2 "ERROR" file.log` |
+| `-B 2` | show 2 lines before match | `grep -B 2 "ERROR" file.log` |
+
+### Examples
+
+```bash
+# Count how many ERROR lines
+grep -c "ERROR" sample.log
+
+# Show ERROR lines with line numbers
+grep -n "ERROR" sample.log
+
+# Case insensitive search
+grep -i "error" sample.log     # matches ERROR, error, Error
+
+# Show lines that are NOT INFO
+grep -v "INFO" sample.log
+
+# Search in all .log files
+grep -r "ERROR" /var/log/
+
+# Show 2 lines around each ERROR for context
+grep -A 2 -B 2 "ERROR" sample.log
+```
+
+---
+
+## 2. `uniq` — Filter Duplicate Lines
+
+`uniq` removes or counts **consecutive duplicate lines**.
+
+> **Important:** Input must be sorted first! `uniq` only compares adjacent lines.
+
+### Syntax
+```bash
+uniq [options] filename
+```
+
+### Common Options
+
+| Option | Meaning | Example |
+|---|---|---|
+| `-c` | count occurrences | `sort file | uniq -c` |
+| `-d` | show only duplicate lines | `sort file | uniq -d` |
+| `-u` | show only unique lines | `sort file | uniq -u` |
+| `-i` | case insensitive | `sort file | uniq -i` |
+
+### Examples
+
+```bash
+# Always sort before uniq!
+sort sample.log | uniq           # remove duplicates
+sort sample.log | uniq -c        # count each unique line
+sort sample.log | uniq -d        # show only duplicates
+sort sample.log | uniq -u        # show only non-duplicates
+```
+
+### Why sort first?
+
+```bash
+# File content:
+apple
+banana
+apple       ← duplicate but not adjacent!
+
+# Without sort — uniq misses it!
+uniq file
+apple
+banana
+apple       ← not removed!
+
+# With sort — uniq catches it!
+sort file | uniq
+apple
+banana      ✅ duplicate removed!
+```
+
+### Real world usage — find most frequent IP:
+
+```bash
+awk '{print $4}' sample.log | sort | uniq -c | sort -rn -k1
+```
+
+Step by step:
+1. `awk '{print $4}'` — extract IPs
+2. `sort` — sort them so duplicates are adjacent
+3. `uniq -c` — count each IP
+4. `sort -rn -k1` — sort by count highest first
+
+---
+
+## 3. Exit Codes — Why We Need Them
+
+Every command in Linux returns an **exit code** when it finishes.
+
+| Exit Code | Meaning |
+|---|---|
+| `0` | ✅ Success |
+| `1` | ❌ General error |
+| `2` | ❌ Misuse of command |
+| `127` | ❌ Command not found |
+
+### Why exit codes matter?
+
+When scripts are used in automation, other scripts or systems need to know if your script **succeeded or failed** — they can't read your echo messages, but they CAN read exit codes!
+
+```bash
+# Example: backup script runs health check first
+./health_check.sh
+if [ $? -eq 0 ]; then
+    ./backup.sh       # only backup if health check passed!
+fi
+```
+
+### How to check exit code
+
+```bash
+# Always use echo $? — never just $?
+./myscript.sh
+echo $?       # ✅ correct
+
+./myscript.sh
+$?            # ❌ wrong — bash tries to run the exit code as a command!
+```
+
+### Setting exit codes in your script
+
+```bash
+exit 0    # success
+exit 1    # failure
+exit 2    # misuse
+```
+
+### Real world example
+
+```bash
+#!/bin/bash
+error_count=$(grep -c "ERROR" $1)
+
+if [ $error_count -gt 3 ]; then
+    echo "Too many errors!"
+    exit 1       # signal failure to calling script/system
+fi
+
+echo "All good!"
+exit 0           # signal success
+```
+
+---
+
+## 4. if / elif / else Blocks
+
+### Basic Syntax
+
+```bash
+if [ condition ]; then
+    # do something
+elif [ condition ]; then
+    # do something else
+else
+    # default
+fi
+```
+
+> Always remember:
+> - Space inside `[ ]` — `[ $x -gt 3 ]` not `[$x -gt 3]`
+> - `fi` closes the if block
+> - `then` after condition
+
+### Numeric Comparison Operators
+
+| Operator | Meaning | Example |
+|---|---|---|
+| `-eq` | equal to | `[ $a -eq $b ]` |
+| `-ne` | not equal to | `[ $a -ne $b ]` |
+| `-gt` | greater than | `[ $a -gt 3 ]` |
+| `-ge` | greater than or equal | `[ $a -ge 3 ]` |
+| `-lt` | less than | `[ $a -lt 3 ]` |
+| `-le` | less than or equal | `[ $a -le 3 ]` |
+
+### String Comparison Operators
+
+| Operator | Meaning | Example |
+|---|---|---|
+| `==` | equal | `[ "$a" == "hello" ]` |
+| `!=` | not equal | `[ "$a" != "hello" ]` |
+| `-z` | string is empty | `[ -z "$a" ]` |
+| `-n` | string is not empty | `[ -n "$a" ]` |
+
+### File Check Operators
+
+| Operator | Meaning | Example |
+|---|---|---|
+| `-f` | file exists | `[ -f "file.txt" ]` |
+| `-d` | directory exists | `[ -d "/home" ]` |
+| `-r` | file is readable | `[ -r "file.txt" ]` |
+| `-w` | file is writable | `[ -w "file.txt" ]` |
+| `-x` | file is executable | `[ -x "script.sh" ]` |
+
+### Examples
+
+```bash
+# Numeric comparison
+if [ $error_count -gt 3 ]; then
+    echo "Too many errors!"
+fi
+
+# elif example
+if [ $error_count -eq 0 ]; then
+    echo "No errors!"
+elif [ $error_count -le 3 ]; then
+    echo "Some errors but acceptable"
+else
+    echo "Too many errors!"
+fi
+
+# String check
+if [ "$name" == "admin" ]; then
+    echo "Welcome admin!"
+fi
+
+# Check if file exists
+if [ -f "sample.log" ]; then
+    echo "Log file found!"
+else
+    echo "Log file missing!"
+    exit 1
+fi
+
+# Check if argument is empty
+if [ -z "$1" ]; then
+    echo "Usage: ./script.sh filename"
+    exit 1
+fi
+```
+
+### Combining conditions
+
+```bash
+# AND — both must be true
+if [ $error_count -gt 3 ] && [ $warn_count -gt 5 ]; then
+    echo "Critical state!"
+fi
+
+# OR — either must be true
+if [ $error_count -gt 3 ] || [ $warn_count -gt 5 ]; then
+    echo "Something is wrong!"
+fi
+```
+
+---
+
+## Quick Reference Card
+
+```bash
+# grep
+grep -c "pattern" file       # count matches
+grep -i "pattern" file       # case insensitive
+grep -v "pattern" file       # invert match
+grep -n "pattern" file       # show line numbers
+
+# uniq
+sort file | uniq -c          # count duplicates
+sort file | uniq -d          # show only duplicates
+
+# exit codes
+exit 0                       # success
+exit 1                       # failure
+echo $?                      # check last exit code
+
+# if conditions
+-eq  -ne  -gt  -ge  -lt  -le    # numeric
+==   !=   -z   -n               # string
+-f   -d   -r   -w   -x          # file
+```
