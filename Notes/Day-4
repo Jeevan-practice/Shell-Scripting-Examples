@@ -1,0 +1,279 @@
+# Shell Scripting — Day 4 Notes
+
+---
+
+## 1. `/etc/passwd` — User Database File
+
+Every Linux system stores user information in `/etc/passwd`
+
+```bash
+cat /etc/passwd
+```
+
+### Structure of each line:
+
+```
+root:x:0:0:root:/root:/bin/bash
+ $1  $2 $3 $4  $5    $6    $7
+```
+
+| Column | Field | Meaning |
+|---|---|---|
+| `$1` | username | login name |
+| `$2` | password | always `x` (stored in `/etc/shadow`) |
+| `$3` | UID | User ID number |
+| `$4` | GID | Group ID number |
+| `$5` | description | full name or description |
+| `$6` | home directory | user's home path |
+| `$7` | shell | default shell |
+
+### Why password is always `x`?
+
+Passwords are **encrypted and stored separately** in `/etc/shadow` for security. `/etc/passwd` is readable by everyone, but `/etc/shadow` is restricted!
+
+### User ID (UID) ranges:
+
+| UID Range | Type |
+|---|---|
+| `0` | root (superuser) |
+| `1-999` | system users (daemon, bin, nobody etc) |
+| `1000+` | regular human users |
+
+---
+
+## 2. Filtering Users with `awk`
+
+### Get all non-system users (UID ≥ 1000):
+
+```bash
+awk -F: '$3>=1000 {print $1}' /etc/passwd
+```
+
+- `-F:` — colon is the separator
+- `$3>=1000` — condition: UID must be 1000 or more
+- `{print $1}` — print username
+
+### Get username and home directory:
+
+```bash
+awk -F: '$3>=1000 {print $1, $6}' /etc/passwd
+```
+
+### Important — `-F` syntax:
+
+```bash
+# Wrong ❌ — space between -F and separator
+awk -F : '$3>=1000'
+
+# Wrong ❌ — condition inside -F
+awk -F ' $3>=1000'
+
+# Correct ✅ — colon immediately after -F
+awk -F: '$3>=1000'
+```
+
+---
+
+## 3. `while read` — Reading Multiple Variables from Pipe
+
+When awk prints multiple columns, use `while read` to capture each into a variable!
+
+### Syntax:
+
+```bash
+command | while read var1 var2 var3; do
+    # use $var1, $var2, $var3
+done
+```
+
+### Example:
+
+```bash
+awk -F: '$3>=1000 {print $1, $6}' /etc/passwd | while read username homedir; do
+    echo "User: $username"
+    echo "Home: $homedir"
+done
+```
+
+Each line from awk is split by spaces into `username` and `homedir`!
+
+### Difference between for and while read:
+
+| | `for` loop | `while read` |
+|---|---|---|
+| Use when | looping through files, numbers, list | reading line by line from command/file |
+| Variable | single variable | multiple variables per line |
+| Example | `for file in *` | `command | while read a b c` |
+
+---
+
+## 4. Checking if Home Directory Exists
+
+Use `-d` flag inside `if` condition:
+
+```bash
+if [ -d "$homedir" ]; then
+    echo "Home exists!"
+else
+    echo "Home missing!"
+fi
+```
+
+| Flag | Meaning |
+|---|---|
+| `-d` | is a directory |
+| `-f` | is a file |
+| `-e` | exists (file or directory) |
+| `-r` | is readable |
+| `-w` | is writable |
+| `-x` | is executable |
+
+### Always quote variables in conditions!
+
+```bash
+# Wrong ❌ — breaks if path has spaces
+if [ -d $homedir ]
+
+# Correct ✅
+if [ -d "$homedir" ]
+```
+
+---
+
+## 5. `lastlog` — Check Last Login Time
+
+`lastlog` shows the last login time for all users on the system.
+
+```bash
+lastlog
+```
+
+Output:
+```
+Username    Port    From    Latest
+root                        **Never logged in**
+codespace   pts/0           Mon Jun 23 10:01:12 2026
+nobody                      **Never logged in**
+```
+
+### Check specific user:
+
+```bash
+lastlog -u username
+lastlog -u codespace
+lastlog -u nobody
+```
+
+### Find users who never logged in:
+
+```bash
+# Using grep
+lastlog | grep "Never" | awk '{print $1}'
+
+# Using awk directly
+lastlog | awk '$2=="**Never" {print $1}'
+```
+
+### Why flag never-logged-in accounts?
+
+In real world sysadmin work:
+- Never logged in accounts could be **forgotten accounts** 🤔
+- They could be a **security risk** 🔐
+- Could be **unused service accounts** that should be disabled ⚠️
+
+---
+
+## 6. Complete User Account Auditor Script
+
+```bash
+#!/bin/bash
+
+# Read /etc/passwd, get non-system users with home directory
+awk -F: '$3>=1000 {print $1, $6}' /etc/passwd | while read username homedir; do
+
+    # Check if home directory exists
+    if [ -d "$homedir" ]; then
+        echo "$username - Home directory Exists"
+    else
+        echo "$username - Home dir Not Exists"
+    fi
+
+    # Check if user has never logged in
+    lastlog -u "$username" | awk '$2=="**Never" {print "Warning -------------"$1" never logged in ------"}'
+
+done
+```
+
+### How it works step by step:
+
+1. `awk -F: '$3>=1000'` — filter only non-system users
+2. `{print $1, $6}` — print username and home directory
+3. `| while read username homedir` — capture into variables
+4. `[ -d "$homedir" ]` — check if home directory exists
+5. `lastlog -u "$username"` — check last login for that user
+6. `awk '$2=="**Never"'` — flag if never logged in
+
+---
+
+## 7. Key Concepts Summary
+
+### Piping to while read:
+```bash
+# Single variable
+command | while read line; do
+    echo $line
+done
+
+# Multiple variables
+command | while read var1 var2; do
+    echo "$var1 and $var2"
+done
+```
+
+### Always quote variables:
+```bash
+# In conditions
+if [ -d "$homedir" ]
+if [ -f "$filename" ]
+if [ "$username" == "root" ]
+
+# In commands
+lastlog -u "$username"
+ls "$homedir"
+```
+
+### awk with conditions:
+```bash
+# Numeric condition
+awk '$3>=1000 {print $1}'      # UID >= 1000
+awk '$3==0 {print $1}'         # only root
+awk 'NR>1 {print $1}'          # skip header
+
+# String condition
+awk '$2=="**Never" {print $1}' # never logged in
+awk '$7=="/bin/bash" {print $1}' # bash users only
+```
+
+---
+
+## Quick Reference
+
+```bash
+# /etc/passwd fields
+$1=username  $2=password  $3=UID  $4=GID  $5=description  $6=homedir  $7=shell
+
+# Filter non-system users
+awk -F: '$3>=1000 {print $1}' /etc/passwd
+
+# Check home directory
+if [ -d "$homedir" ]; then ... fi
+
+# Check last login
+lastlog -u "$username"
+lastlog | grep "Never" | awk '{print $1}'
+
+# Pipe to while read
+command | while read var1 var2; do
+    # use var1 and var2
+done
+```
